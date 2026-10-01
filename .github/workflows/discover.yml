@@ -1,0 +1,31 @@
+name: Weekly discovery
+
+# Re-mines the latest Common Crawl index for Greenhouse / Lever / Ashby boards,
+# validates them against the live APIs, and commits the refreshed list.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.11'
+      - run: uv pip install -e .
+      - name: Discover boards
+        run: uv run --no-sync jobradar discover --out boards/discovered.yaml | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add boards/discovered.yaml
+          git diff --cached --quiet || git commit -m "Refresh discovered boards from Common Crawl"
+          git push

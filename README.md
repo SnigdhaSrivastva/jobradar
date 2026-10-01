@@ -6,15 +6,16 @@
 
 **▶ Live dashboard: [snigdhasrivastva.github.io/jobradar](https://snigdhasrivastva.github.io/jobradar/)** (refreshed daily)
 
-jobradar watches company career pages, ranks every open role by an **explainable fit score** against your profile, and builds a tailored resume for any role using **only bullets you've already verified**. It reads the official public job-board APIs of Greenhouse, Lever and Ashby. It never applies, submits or logs in anywhere.
+jobradar watches **thousands of company career pages**, ranks every open role by an **explainable fit score** against your profile, and builds a tailored resume for any role using **only bullets you've already verified**. It reads the official public job-board APIs of Greenhouse, Lever and Ashby. It never applies, submits or logs in anywhere.
 
-On its first real run it pulled **5,939 open roles from 19 companies in 81 seconds**.
+**Board discovery at scale:** `jobradar discover` mines the [Common Crawl](https://commoncrawl.org) URL index. Its first run found **60,000+ job-board URLs**, extracted **3,722 candidate company boards**, and validated **2,807 with open roles** against the live APIs. A weekly workflow refreshes the list automatically. The curated list of 19 companies alone yields about 5,900 roles in 81 seconds.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-    B[boards.yaml<br/>19 companies] --> F[fetch<br/>parallel, per-board<br/>error isolation]
+    CC[Common Crawl<br/>URL index] -->|weekly: mine + validate| B[boards<br/>2,800+ companies]
+    B --> F[fetch<br/>parallel, retries,<br/>per-board error isolation]
     F -->|Greenhouse / Lever / Ashby<br/>public JSON APIs| N[normalize<br/>HTML → text]
     N --> S[score<br/>title · skills · seniority · location]
     P[profile.yaml] --> S
@@ -59,7 +60,8 @@ The SQLite store dedupes postings across daily runs and records first and last s
 
 ```bash
 pip install -e .
-jobradar fetch                          # boards in example/boards.yaml, scored with example/profile.yaml
+jobradar discover                       # mine Common Crawl for company boards -> boards/discovered.yaml
+jobradar fetch --boards example/boards.yaml boards/discovered.yaml
 jobradar top -n 20                      # best current matches
 jobradar tailor <job-key>               # pick verified bullets for that posting
 jobradar status <job-key> applied       # track it
@@ -70,8 +72,9 @@ To use it yourself, copy the files in `example/` and edit your target titles, sk
 
 ## Tests
 
-`pytest` runs 35 tests (96% coverage):
+`pytest` runs 49 tests (~94% coverage):
 - parsers run against **real recorded API payloads** from each platform
+- Common Crawl discovery: slug extraction, dedupe across hosts, retrying flaky pages (including HTML error pages served with HTTP 200), and validation that drops dead or empty boards
 - double-escaped HTML handling
 - isolating a failing board
 - scoring edge cases: word boundaries, aliases, years parsing, avoid-list

@@ -1,6 +1,6 @@
 name: Daily scan
 
-# Fetches every board in example/boards.yaml, rescores, and publishes the dashboard.
+# Fetches the curated + discovered boards, rescores everything, and publishes the dashboard.
 on:
   schedule:
     - cron: '0 12 * * *'
@@ -34,7 +34,7 @@ jobs:
           key: jobs-${{ github.run_id }}
           restore-keys: jobs-
       - name: Fetch and score
-        run: uv run --no-sync jobradar fetch | tee -a "$GITHUB_STEP_SUMMARY"
+        run: uv run --no-sync jobradar fetch --boards example/boards.yaml boards/discovered.yaml | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Build dashboard
         run: uv run --no-sync jobradar report --out site/index.html
       - name: Save job history

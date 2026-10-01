@@ -80,3 +80,14 @@ def test_report_embeds_data_safely(store: Store, profile: Profile) -> None:
     assert "</script>" not in data
     assert json.loads(data)[0]["title"].startswith("Backend </script>")
     assert "boards unavailable" in page
+
+
+def test_report_marks_roles_first_seen_in_the_last_day(store: Store, profile: Profile) -> None:
+    from datetime import UTC, datetime
+    store.upsert(scored(profile, make_job(job_id="old")), {"Acme"}, now="2026-09-01T00:00:00+00:00")
+    store.upsert(scored(profile, make_job(job_id="old"), make_job(job_id="fresh")), {"Acme"},
+                 now="2026-09-10T00:00:00+00:00")
+    page = render(store.top(), store.counts(), now=datetime(2026, 9, 10, 1, tzinfo=UTC))
+    data = json.loads(page.split('<script id="data" type="application/json">', 1)[1].split("</script>", 1)[0])
+    assert sorted(j["new"] for j in data) == [False, True]  # "fresh" is new, "old" is not
+    assert "new in the last 24h" in page

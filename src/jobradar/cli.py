@@ -7,9 +7,11 @@ import logging
 import sys
 from pathlib import Path
 
+import httpx
 import truststore
 import yaml
 
+from jobradar.discover import discover
 from jobradar.profile import load_fact_bank, load_profile
 from jobradar.report import render
 from jobradar.scoring import score
@@ -18,9 +20,15 @@ from jobradar.store import STATUSES, Store
 from jobradar.tailor import tailor, verify_grounded
 
 
-def load_boards(path: str | Path) -> list[Board]:
-    data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
-    return [Board(platform=b["platform"], slug=b["slug"], company=b.get("company", b["slug"])) for b in data["boards"]]
+def load_boards(*paths: str | Path) -> list[Board]:
+    """Merge board lists, keeping the first entry for each (platform, slug) so curated names win."""
+    boards: dict[tuple[str, str], Board] = {}
+    for path in paths:
+        data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+        for b in data["boards"]:
+            key = (b["platform"], str(b["slug"]).lower())
+            boards.setdefault(key, Board(platform=b["platform"], slug=b["slug"], company=b.get("company", b["slug"])))
+    return list(boards.values())
 
 
 def _job_from_row(row: object) -> Job:
@@ -37,7 +45,13 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     f = sub.add_parser("fetch", help="fetch boards, score and store")
-    f.add_argument("--boards", default="example/boards.yaml")
+    f.add_argument("--boards", nargs="+", default=["example/boards.yaml"], help="one or more board lists")
+    f.add_argument("--workers", type=int, default=16)
+
+    dsc = sub.add_parser("discover", help="find company boards in the Common Crawl index")
+    dsc.add_argument("--out", default="boards/discovered.yaml")
+    dsc.add_argument("--crawl", default=None, help="Common Crawl collection id (default: latest)")
+    dsc.add_argument("--limit", type=int, default=None, help="validate at most this many candidates")
 
     r = sub.add_parser("report", help="write the static HTML dashboard")
     r.add_argument("--out", default="site/index.html")
@@ -61,8 +75,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.cmd == "fetch":
             profile = load_profile(args.profile)
-            boards = load_boards(args.boards)
-            result = fetch_all(boards)
+            boards = load_boards(*args.boards)
+            result = fetch_all(boards, workers=args.workers)
             scored = [(job, score(job, profile)) for job in result.jobs]
             fetched = {b.company for b in boards if f"{b.platform}:{b.slug}" not in result.errors}
             summary = store.upsert(scored, fetched)
@@ -70,6 +84,21 @@ def main(argv: list[str] | None = None) -> int:
                   f"{summary['new']} new, {summary['updated']} updated, {summary['closed']} closed")
             for board, error in result.errors.items():
                 print(f"  ! {board}: {error}")
+        elif args.cmd == "discover":
+            client = httpx.Client(timeout=120.0, headers={"User-Agent": "jobradar (+https://github.com/SnigdhaSrivastva/jobradar)"})
+            discovered, stats = discover(client, crawl=args.crawl, limit=args.limit)
+            out = Path(args.out)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            boards_yaml = {
+                "source": "Common Crawl URL index, validated against each platform's public API",
+                "boards": [{"platform": v.board.platform, "slug": v.board.slug, "company": v.board.slug,
+                            "open_roles": v.open_roles} for v in discovered],
+            }
+            out.write_text(yaml.safe_dump(boards_yaml, sort_keys=False), encoding="utf-8")
+            print(f"{stats['candidates']} candidate boards, {len(discovered)} with open roles -> {out}")
+            for key, value in stats.items():
+                if key.startswith("urls:"):
+                    print(f"  {key[5:]}: {value} URLs")
         elif args.cmd == "report":
             out = Path(args.out)
             out.parent.mkdir(parents=True, exist_ok=True)

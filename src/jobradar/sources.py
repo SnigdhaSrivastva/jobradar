@@ -9,6 +9,7 @@ from __future__ import annotations
 import html
 import logging
 import re
+import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -144,10 +145,24 @@ class FetchResult:
     errors: dict[str, str]
 
 
-def fetch_board(client: httpx.Client, board: Board) -> list[Job]:
-    response = client.get(ENDPOINTS[board.platform].format(slug=board.slug))
-    response.raise_for_status()
-    return PARSERS[board.platform](response.json(), board.company)
+RETRYABLE = {429, 500, 502, 503, 504}
+
+
+def fetch_board(client: httpx.Client, board: Board, attempts: int = 3, backoff_s: float = 1.0) -> list[Job]:
+    """Fetch one board, retrying rate limits and transient server errors with exponential backoff."""
+    url = ENDPOINTS[board.platform].format(slug=board.slug)
+    for attempt in range(attempts):
+        try:
+            response = client.get(url)
+        except httpx.TransportError:
+            if attempt == attempts - 1:
+                raise
+        else:
+            if response.status_code not in RETRYABLE or attempt == attempts - 1:
+                response.raise_for_status()
+                return PARSERS[board.platform](response.json(), board.company)
+        time.sleep(backoff_s * 2**attempt)
+    raise RuntimeError("unreachable")
 
 
 def fetch_all(boards: list[Board], client: httpx.Client | None = None, workers: int = 8) -> FetchResult:

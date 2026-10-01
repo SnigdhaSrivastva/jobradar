@@ -46,3 +46,14 @@ def test_top_tailor_status_and_report(db: Path, tmp_path: Path, capsys: pytest.C
 def test_tailor_unknown_job_returns_error(db: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert run(db, "tailor", "greenhouse:Acme:missing") == 2
     assert "unknown job" in capsys.readouterr().err
+
+
+def test_board_lists_merge_and_dedupe(tmp_path: Path) -> None:
+    curated = tmp_path / "curated.yaml"
+    curated.write_text("boards:\n  - {platform: greenhouse, slug: stripe, company: Stripe}\n", encoding="utf-8")
+    found = tmp_path / "found.yaml"
+    found.write_text("boards:\n  - {platform: greenhouse, slug: Stripe}\n  - {platform: lever, slug: acme}\n",
+                     encoding="utf-8")
+    boards = cli.load_boards(curated, found)
+    assert [(b.platform, b.slug, b.company) for b in boards] == [("greenhouse", "stripe", "Stripe"),
+                                                                ("lever", "acme", "acme")]

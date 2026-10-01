@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import html
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 PAGE = """<!doctype html>
@@ -35,6 +35,8 @@ input{flex:1;min-width:180px}
 .bar{display:flex;height:6px;border-radius:3px;overflow:hidden;margin-top:8px;background:var(--border);max-width:320px}
 .bar span{display:block}
 footer{margin-top:28px;text-align:center}
+.new{font-size:11px;font-weight:700;text-transform:uppercase;color:#fff;background:var(--good);border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle}
+label{display:flex;align-items:center;gap:6px}
 </style>
 </head>
 <body><main>
@@ -47,6 +49,8 @@ Updated __UPDATED__.</p>
 <input id="q" placeholder="Filter by title, company, skill, location…" aria-label="Filter">
 <select id="min" aria-label="Minimum score"><option value="0">All scores</option><option value="50">≥ 50</option><option value="65" selected>≥ 65</option><option value="80">≥ 80</option></select>
 <select id="remote" aria-label="Remote"><option value="">Any location</option><option value="1">Remote only</option></select>
+<select id="platform" aria-label="Platform"><option value="">All platforms</option><option value="greenhouse">Greenhouse</option><option value="lever">Lever</option><option value="ashby">Ashby</option></select>
+<label class="small muted"><input type="checkbox" id="fresh"> New only</label>
 </div>
 <p id="count" class="muted small"></p>
 <div id="list"></div>
@@ -62,14 +66,16 @@ function render(){
   const q = document.getElementById("q").value.toLowerCase().trim();
   const min = +document.getElementById("min").value;
   const remote = document.getElementById("remote").value === "1";
-  const shown = jobs.filter(j => j.score >= min && (!remote || j.remote) &&
+  const platform = document.getElementById("platform").value;
+  const fresh = document.getElementById("fresh").checked;
+  const shown = jobs.filter(j => j.score >= min && (!remote || j.remote) && (!platform || j.platform === platform) && (!fresh || j.new) &&
     (!q || [j.title, j.company, j.location, ...j.fit.matched_skills].join(" ").toLowerCase().includes(q)));
   document.getElementById("count").textContent = `${shown.length} of ${jobs.length} roles`;
   document.getElementById("list").innerHTML = shown.map(j => {
     const cls = j.score >= 80 ? "hi" : j.score >= 65 ? "md" : "lo";
     const bar = Object.entries(j.fit.parts).map(([k,v]) => `<span title="${k}: ${v}/${MAX[k]}" style="width:${v}%;background:${COLORS[k]}"></span>`).join("");
     return `<article class="job"><div class="score ${cls}">${Math.round(j.score)}</div><div>
-      <a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>
+      <a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${j.new ? ' <span class="new">new</span>' : ""}
       <div class="muted small">${esc(j.company)} · ${esc(j.location || "—")}${j.remote ? " · remote" : ""}${j.salary ? " · " + esc(j.salary) : ""}</div>
       <div class="bar" aria-hidden="true">${bar}</div>
       <div class="small muted">${esc(j.fit.reasons.join(" · "))}</div>
@@ -77,7 +83,7 @@ function render(){
     </div></article>`;
   }).join("");
 }
-["q","min","remote"].forEach(id => document.getElementById(id).addEventListener("input", render));
+["q","min","remote","platform","fresh"].forEach(id => document.getElementById(id).addEventListener("input", render));
 render();
 </script>
 </body></html>
@@ -91,24 +97,29 @@ def _json_for_script(value: Any) -> str:
 
 def render(rows: list[dict[str, Any]], counts: dict[str, int], errors: dict[str, str] | None = None,
            now: datetime | None = None) -> str:
+    now = now or datetime.now(UTC)
+    new_since = (now - timedelta(hours=24)).isoformat(timespec="seconds")
     jobs = [
         {
             "title": r["title"], "company": r["company"], "location": r["location"], "remote": bool(r["remote"]),
             "url": r["url"], "salary": r["salary"], "score": r["score"], "fit": json.loads(r["score_json"]),
+            "platform": r["platform"], "new": r["first_seen"] >= new_since,
         }
         for r in rows
     ]
     strong = sum(1 for j in jobs if j["score"] >= 80)
+    fresh = sum(1 for j in jobs if j["new"])
     stats = [
         (counts.get("active", 0), "open roles tracked"),
         (counts.get("companies", 0), "companies"),
         (strong, "strong matches (80+)"),
+        (fresh, "new in the last 24h"),
     ]
     if errors:
         stats.append((len(errors), "boards unavailable"))
     stats_html = "".join(f'<div class="stat"><b>{n}</b><span class="muted small">{html.escape(label)}</span></div>'
                          for n, label in stats)
-    updated = (now or datetime.now(UTC)).strftime("%b %d, %Y %H:%M UTC")
+    updated = now.strftime("%b %d, %Y %H:%M UTC")
     return (PAGE.replace("__UPDATED__", updated)
                 .replace("__STATS__", stats_html)
                 .replace("__DATA__", _json_for_script(jobs)))
