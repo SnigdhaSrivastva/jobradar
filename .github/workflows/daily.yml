@@ -1,0 +1,49 @@
+name: Daily scan
+
+# Fetches every board in example/boards.yaml, rescores, and publishes the dashboard.
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: '3.11'
+      - run: uv pip install -e .
+      - name: Restore job history
+        uses: actions/cache/restore@v4
+        with:
+          path: jobradar.sqlite
+          key: jobs-${{ github.run_id }}
+          restore-keys: jobs-
+      - name: Fetch and score
+        run: uv run --no-sync jobradar fetch | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Build dashboard
+        run: uv run --no-sync jobradar report --out site/index.html
+      - name: Save job history
+        uses: actions/cache/save@v4
+        with:
+          path: jobradar.sqlite
+          key: jobs-${{ github.run_id }}
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,27 @@
+# Example profile: a senior backend / data engineer. Edit to match your own background.
+target_titles:
+  - backend engineer
+  - software engineer
+  - data engineer
+  - platform engineer
+  - senior software engineer
+avoid_titles: [intern, new grad, principal, director, manager, android, ios, mobile, frontend, sales, recruiter]
+years_experience: 5
+locations: [new york, nyc, remote, united states, usa]
+remote_ok: true
+skills:
+  - {name: Java, weight: 3, core: true}
+  - {name: Python, weight: 3, core: true}
+  - {name: Kafka, weight: 3, aliases: [event streaming, event-driven]}
+  - {name: SQL, weight: 2, aliases: [postgres, postgresql, mysql]}
+  - {name: Spring, weight: 2, aliases: [spring boot]}
+  - {name: Distributed systems, weight: 3, aliases: [distributed system, microservices]}
+  - {name: AWS, weight: 2, aliases: [amazon web services]}
+  - {name: Kubernetes, weight: 2, aliases: [k8s]}
+  - {name: Docker, weight: 1}
+  - {name: Data pipelines, weight: 2, aliases: [etl, elt, data pipeline]}
+  - {name: Spark, weight: 1, aliases: [pyspark]}
+  - {name: Redis, weight: 1}
+  - {name: Terraform, weight: 1, aliases: [infrastructure as code]}
+  - {name: Observability, weight: 1, aliases: [monitoring, tracing, datadog, prometheus, grafana]}
+  - {name: LLMs, weight: 1, aliases: [large language model, rag, retrieval-augmented, generative ai]}

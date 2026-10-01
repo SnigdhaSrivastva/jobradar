@@ -1,0 +1,21 @@
+# Public job boards to watch: platform + the company's board slug.
+boards:
+  - {platform: greenhouse, slug: stripe, company: Stripe}
+  - {platform: greenhouse, slug: databricks, company: Databricks}
+  - {platform: greenhouse, slug: datadog, company: Datadog}
+  - {platform: greenhouse, slug: airbnb, company: Airbnb}
+  - {platform: greenhouse, slug: robinhood, company: Robinhood}
+  - {platform: greenhouse, slug: coinbase, company: Coinbase}
+  - {platform: greenhouse, slug: figma, company: Figma}
+  - {platform: greenhouse, slug: brex, company: Brex}
+  - {platform: greenhouse, slug: cloudflare, company: Cloudflare}
+  - {platform: greenhouse, slug: mongodb, company: MongoDB}
+  - {platform: greenhouse, slug: twilio, company: Twilio}
+  - {platform: greenhouse, slug: instacart, company: Instacart}
+  - {platform: lever, slug: palantir, company: Palantir}
+  - {platform: lever, slug: spotify, company: Spotify}
+  - {platform: ashby, slug: ramp, company: Ramp}
+  - {platform: ashby, slug: notion, company: Notion}
+  - {platform: ashby, slug: openai, company: OpenAI}
+  - {platform: ashby, slug: snowflake, company: Snowflake}
+  - {platform: ashby, slug: linear, company: Linear}

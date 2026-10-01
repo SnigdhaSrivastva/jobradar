@@ -1,0 +1,17 @@
+# Example fact bank: pre-written, verified resume bullets tagged with the skills they evidence.
+# Tailoring only selects and orders these; it never writes new claims.
+facts:
+  - text: Built Kafka consumers that process 18,000+ events/min with exactly-once effects using idempotency keys and a transactional ledger.
+    skills: [Kafka, Java, Distributed systems]
+  - text: Designed Spring Boot services on PostgreSQL and Redis handling 1.2M+ transactions per day at 99.9% availability.
+    skills: [Spring, Java, SQL, Redis, Distributed systems]
+  - text: Wrote Python and SQL ETL pipelines feeding analytics marts, with data-quality gates that block bad loads.
+    skills: [Python, SQL, Data pipelines]
+  - text: Cut mean time to recovery from 78 to 38 minutes by adding tracing, dashboards and alerts.
+    skills: [Observability]
+  - text: Automated infrastructure and deployments on AWS with Terraform, Docker, Kubernetes and GitHub Actions.
+    skills: [AWS, Terraform, Docker, Kubernetes]
+  - text: Built a retrieval-augmented Q&A service whose answers cite the exact source passages.
+    skills: [LLMs, Python]
+  - text: Ran Spark jobs to reconcile order and inventory data across six enterprise systems.
+    skills: [Spark, Data pipelines, SQL]
